@@ -3,7 +3,7 @@
 
 clear all;
 %Read from File
-xyloObj = VideoReader('People.mp4');
+xyloObj = VideoReader('PeopleCounting_Source_2.mp4');
 tic % start time
 nFrames =xyloObj.NumberOfFrames;
 
@@ -36,12 +36,11 @@ for u =1:2:nFrames
         subs3=0;
         curRGB = tempRgbObj(:,:,:, k);% current red green blue frame
         
-        for i=1:3 % for each color (red green blue) do substraction
+       for i=1:3 % for each color (red green blue) do substraction
             C=curRGB(:,:,i);
             subs=imabsdiff(background(:,:,i),C);
             subs3=subs3+subs;
-            bw=subs>30; % thresholdin
-			g
+            bw=subs>30; % thresholding
             bw=imclose(bw,disk1);
             bw3=bw3+bw; % and sum up of them
         end

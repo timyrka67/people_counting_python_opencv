@@ -13,8 +13,6 @@ cam = cv2.VideoCapture(0)
 
 winName = "Movement Indicator"
 
-
-
 cv2.namedWindow(winName, cv2.CV_WINDOW_AUTOSIZE)
 
 # Read three images first:
@@ -26,25 +24,6 @@ while True:
   cv2.imshow( winName, diffImg(t_minus, t, t_plus) )
   # Read next image
   t_minus = t
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  1233
-  2146654798987456654123214565478785
-
-
-  
   t = t_plus
   t_plus = cv2.cvtColor(cam.read()[1], cv2.COLOR_RGB2GRAY)
   key = cv2.waitKey(10)
