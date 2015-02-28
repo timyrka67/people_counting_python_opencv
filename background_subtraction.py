@@ -9,7 +9,7 @@ def diffImg(t0, t1, t2):
   d2 = cv2.absdiff(t1, t0)
   return cv2.bitwise_and(d1, d2)
 
-cam = cv2.VideoCapture(0)
+cam = cv2.VideoCapture("People.mp4")
 
 winName = "Movement Indicator"
 
