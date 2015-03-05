@@ -3,49 +3,87 @@ from cv2.cv import *
 import cv2.cv as cv
 import math
 
+first_point = 0
+cur_track_id = 0
+point_with_no_track = ()
+
+
+class Track:
+    def __init__(self):
+        self.track_id = ""
+        self.coordinates = []
+        self.velocity = 0
+
+    def add_point(self, point):
+        self.coordinates.append(point)
+
+    def set_track_id(self, track_id):
+        self.track_id = "track %d" % track_id
+
+    class Point:
+        def __init__(self, x, y):
+            self.x = x
+            self.y = y
+
 
 class Tracking:
     def __init__(self):
-        self.max_distance_between = 10
-        self.min_distance_between = 5
-        self.tracks_id = 0
-        self.list_of_tracks = [[]]
+        self.max_distance_between = 50
+        self.min_distance_between = 0
         self.list_of_points = []
-        self.first_point = False
+        self.track = Track()
 
     def find_nearest_track(self, point):
+        global first_point, point_with_no_track
         point_with_no_track = ()
-        if len(self.list_of_tracks) != 1:
-            for track in self.list_of_tracks:
-                if len(track) != 0:
-                    last_index_of_track = len(track)-1
-                    last_element_coord_list = track[last_index_of_track]
-                    last_element_coord = last_element_coord_list[0]
-                    last_coord_x = last_element_coord[0]
-                    last_coord_y = last_element_coord[1]
-                    distance_between = math.hypot(last_coord_x - point[0], last_coord_y - point[1])
-                    if (distance_between < self.max_distance_between) and (distance_between > self.min_distance_between) and (last_element_coord != point):
-                        track.append(point)
-                    elif last_element_coord != point:
-                        point_with_no_track = point
-        else:
+        we_found_nearest_track = False
+        if first_point == 0:
+            print "First point was detected"
             point_with_no_track = point
-            self.first_point = True
-        return self.first_point, point_with_no_track
+            first_point = 1
+        if first_point == 2:
+            for track in self.track.coordinates:
+                print "we have  a track", track
+                if track:
+                    distance_between = math.hypot(track.x - point[0], track.y - point[1])
+                    print "We compare point", point, "with last in track = ", "Distance between = ", distance_between
+                    if (distance_between <= self.max_distance_between) and (distance_between >= (self.min_distance_between +5)):
+                        print "Add point to track", track.x, track.y
+                        self.track.add_point(Track.Point(point[0], point[1]))
+                        print "We added point to track=", track
+                        we_found_nearest_track = True
+                    elif (distance_between <= self.max_distance_between) and (distance_between >= self.min_distance_between):
+                        print "We found point in track but is the same as was. Point:", point
+                        we_found_nearest_track = True
+            if not we_found_nearest_track:
+                print "This point have no track", point
+                point_with_no_track = point
+        return first_point, point_with_no_track
 
     def add_points_to_tracks(self, point):
-        self.first_point, point_with_no_track = self.find_nearest_track(point)
+        global first_point, cur_track_id, point_with_no_track
+        first_point, point_with_no_track = self.find_nearest_track(point)
+        print "point_with_no_track after using self.find_nearest_track(point)= ", point_with_no_track
         if point_with_no_track:
-            if self.first_point:
-                self.tracks_id += 1
-                track = ("track %d" % self.tracks_id, [point])
-                self.list_of_tracks.insert(0, track)
-                self.first_point = False
+            if first_point == 1:
+                print "We will add first_point", point, "To track = ", cur_track_id
+                self.track.set_track_id(cur_track_id)
+                self.track.add_point(point_with_no_track)
+                print "self.track.coordinates", self.track.coordinates, "self.track.track_id", self.track.track_id
+                for i in self.track.coordinates:
+                    print "x coord", i.x, "y coord", i.y
+                cur_track_id += 1
+                first_point = 2
+                print "First point was added. Current number of tracks ="
+                point_with_no_track = ()
             else:
-                self.tracks_id += 1
-                track = ("track %d" % self.tracks_id, [point])
-                self.list_of_tracks.append(track)
-                print self.list_of_tracks
+                print "We will add new track for point", point_with_no_track, "Track ID = ", cur_track_id
+                self.track.set_track_id(cur_track_id)
+                self.track.add_point(point_with_no_track)
+                print "+1 track",
+                cur_track_id += 1
+                point_with_no_track = ()
+                #print "We deleted this point. Now point_with_no_track = ", point_with_no_track
 
 
 class Target:
