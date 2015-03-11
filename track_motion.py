@@ -9,6 +9,18 @@ point_with_no_track = ()
 list_of_tracks = []
 
 
+class Visualization():
+    def __init__(self):
+        self.line_color = (250, 200, 0)
+
+    def add_line(self, color_image, frame_height, frame_width, font, line_p1_x=0, line_p2_x=200, line_p1_y=200, line_p2_y=200, line_color=(100, 200, 0), line_width=10):
+        cv.Line(color_image, (line_p1_x, line_p1_y), (line_p2_x, line_p2_y), line_color, line_width)
+
+    def add_text_up_down_to_line(self, color_image, frame_height, frame_width, font):
+        cv.PutText(color_image, "up", (0, frame_height / 2 - 5), font, self.line_color)
+        cv.PutText(color_image, "down", (0, frame_height / 2 + 25), font, self.line_color)
+
+
 class Track:
     def __init__(self):
         self.track_id = ""
@@ -29,7 +41,7 @@ class Track:
 
 class Tracking:
     def __init__(self):
-        self.max_distance_between = 100
+        self.max_distance_between = 60
         self.min_distance_between = 0
         self.min_record_step = 5
         self.list_of_points = []
@@ -49,10 +61,13 @@ class Tracking:
                     last_track_coord = len(track.coordinates) - 1
                     distance_between = math.hypot(track.coordinates[last_track_coord][0] - point[0],
                                                   track.coordinates[last_track_coord][1] - point[1])
-                    if (distance_between <= self.max_distance_between) and (distance_between >= (self.min_distance_between + self.min_record_step) and track.coordinates[last_track_coord] != point):
+                    if (distance_between <= self.max_distance_between) and (
+                                    distance_between >= (self.min_distance_between + self.min_record_step) and
+                                    track.coordinates[last_track_coord] != point):
                         track.add_point(point)
                         we_found_nearest_track = True
-                    if (distance_between <= self.max_distance_between) and (distance_between >= self.min_distance_between):
+                    if (distance_between <= self.max_distance_between) and (
+                                distance_between >= self.min_distance_between):
                         we_found_nearest_track = True
             if not we_found_nearest_track:
                 print "This point have no track", point, "Current track number", cur_track_id + 1
@@ -131,9 +146,10 @@ class Target:
             color_image, first = self.image_difference(first)
             contour = self.add_contour_in_storage()
             font = cv.InitFont(cv.CV_FONT_HERSHEY_SIMPLEX, 1, 1, 0, 1, 1)
-            cv.Line(color_image, (0, self.frame_height / 2), (self.frame_width, self.frame_height / 2), (250, 0, 0), 1)
-            cv.PutText(color_image, "up", (0, self.frame_height / 2 - 5), font, (250, 0, 0))
-            cv.PutText(color_image, "down", (0, self.frame_height / 2 + 25), font, (250, 0, 0))
+            line_and_text = Visualization()
+            #line_and_text.add_line(color_image, self.frame_height, self.frame_width, font, line_color=(0,0,0))
+            #line_and_text.add_text_up_down_to_line(color_image, self.frame_height, self.frame_width, font)
+
             while contour:
                 bound_rect = cv.BoundingRect(list(contour))
                 contour = contour.h_next()
@@ -144,7 +160,12 @@ class Target:
                 tracking = Tracking()
                 for point in self.list_of_points:
                     tracking.add_points_to_tracks(point)
-                    #print "len(self.list_of_points", len(self.list_of_points)
+                for track in list_of_tracks:
+                    x_first = track.coordinates[len(track.coordinates) - 2][0]
+                    y_first = track.coordinates[len(track.coordinates) - 2][1]
+                    x = track.coordinates[len(track.coordinates) - 1][0]
+                    y = track.coordinates[len(track.coordinates) - 1][1]
+                    line_and_text.add_line(color_image, self.frame_height, self.frame_width, font,line_p1_x=x_first, line_p1_y=y_first, line_p2_x=x, line_p2_y=y, line_width=4,line_color=(0, 222, 322))
             cv.ShowImage("target", color_image)
             c = cv.WaitKey(1) % 0x100
             if c == 27:
