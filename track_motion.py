@@ -6,6 +6,7 @@ import math
 first_point = 0
 cur_track_id = 0
 point_with_no_track = ()
+list_of_tracks = []
 
 
 class Track:
@@ -28,8 +29,9 @@ class Track:
 
 class Tracking:
     def __init__(self):
-        self.max_distance_between = 50
+        self.max_distance_between = 100
         self.min_distance_between = 0
+        self.min_record_step = 5
         self.list_of_points = []
         self.track = Track()
 
@@ -42,48 +44,38 @@ class Tracking:
             point_with_no_track = point
             first_point = 1
         if first_point == 2:
-            for track in self.track.coordinates:
-                print "we have  a track", track
+            for track in list_of_tracks:
                 if track:
-                    distance_between = math.hypot(track.x - point[0], track.y - point[1])
-                    print "We compare point", point, "with last in track = ", "Distance between = ", distance_between
-                    if (distance_between <= self.max_distance_between) and (distance_between >= (self.min_distance_between +5)):
-                        print "Add point to track", track.x, track.y
-                        self.track.add_point(Track.Point(point[0], point[1]))
-                        print "We added point to track=", track
+                    last_track_coord = len(track.coordinates) - 1
+                    distance_between = math.hypot(track.coordinates[last_track_coord][0] - point[0],
+                                                  track.coordinates[last_track_coord][1] - point[1])
+                    if (distance_between <= self.max_distance_between) and (distance_between >= (self.min_distance_between + self.min_record_step) and track.coordinates[last_track_coord] != point):
+                        track.add_point(point)
                         we_found_nearest_track = True
-                    elif (distance_between <= self.max_distance_between) and (distance_between >= self.min_distance_between):
-                        print "We found point in track but is the same as was. Point:", point
+                    if (distance_between <= self.max_distance_between) and (distance_between >= self.min_distance_between):
                         we_found_nearest_track = True
             if not we_found_nearest_track:
-                print "This point have no track", point
+                print "This point have no track", point, "Current track number", cur_track_id + 1
                 point_with_no_track = point
         return first_point, point_with_no_track
 
     def add_points_to_tracks(self, point):
         global first_point, cur_track_id, point_with_no_track
         first_point, point_with_no_track = self.find_nearest_track(point)
-        print "point_with_no_track after using self.find_nearest_track(point)= ", point_with_no_track
         if point_with_no_track:
             if first_point == 1:
                 print "We will add first_point", point, "To track = ", cur_track_id
                 self.track.set_track_id(cur_track_id)
                 self.track.add_point(point_with_no_track)
-                print "self.track.coordinates", self.track.coordinates, "self.track.track_id", self.track.track_id
-                for i in self.track.coordinates:
-                    print "x coord", i.x, "y coord", i.y
+                list_of_tracks.append(self.track)
                 cur_track_id += 1
                 first_point = 2
-                print "First point was added. Current number of tracks ="
-                point_with_no_track = ()
+                print "First point was added. Current number of tracks =", len(list_of_tracks)
             else:
-                print "We will add new track for point", point_with_no_track, "Track ID = ", cur_track_id
                 self.track.set_track_id(cur_track_id)
                 self.track.add_point(point_with_no_track)
-                print "+1 track",
+                list_of_tracks.append(self.track)
                 cur_track_id += 1
-                point_with_no_track = ()
-                #print "We deleted this point. Now point_with_no_track = ", point_with_no_track
 
 
 class Target:
@@ -147,10 +139,12 @@ class Target:
                 contour = contour.h_next()
                 pt1, pt2, point, area = self.get_rectangle_parameters(bound_rect, color_image)
                 cv.Rectangle(color_image, pt1, pt2, cv.CV_RGB(255, 0, 0), 1)
+                self.list_of_points = []
                 self.get_points_tracking(point, area, color_image)
                 tracking = Tracking()
                 for point in self.list_of_points:
                     tracking.add_points_to_tracks(point)
+                    #print "len(self.list_of_points", len(self.list_of_points)
             cv.ShowImage("target", color_image)
             c = cv.WaitKey(1) % 0x100
             if c == 27:
