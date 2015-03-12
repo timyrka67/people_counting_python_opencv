@@ -2,11 +2,30 @@ import cv2
 from cv2.cv import *
 import cv2.cv as cv
 import math
+import numpy as np
 
 first_point = 0
 cur_track_id = 0
 point_with_no_track = ()
 list_of_tracks = []
+
+
+class Statistics():
+    def __init__(self):
+        self.something = 3
+
+    def get_equation_coefficient(self, point_first, point_second):
+        f_x = point_first[0]
+        f_y = point_first[1]
+        s_x = point_second[0]
+        s_y = point_second[1]
+        A = [[f_x, 1], [s_x, 1]]
+        b = [f_y,s_y]
+        A = np.array(A)
+        b = np.array(b)
+        x = list(np.linalg.solve(A, b))
+        return x[0], x[1]
+    #def get_objects_crossing_line_count(self, track_coord_prev, track_coord_cur, line_vector):
 
 
 class Visualization():
@@ -16,9 +35,8 @@ class Visualization():
     def add_line(self, color_image, frame_height, frame_width, font, line_p1_x=0, line_p2_x=200, line_p1_y=200, line_p2_y=200, line_color=(100, 200, 0), line_width=10):
         cv.Line(color_image, (line_p1_x, line_p1_y), (line_p2_x, line_p2_y), line_color, line_width)
 
-    def add_text_up_down_to_line(self, color_image, frame_height, frame_width, font):
-        cv.PutText(color_image, "up", (0, frame_height / 2 - 5), font, self.line_color)
-        cv.PutText(color_image, "down", (0, frame_height / 2 + 25), font, self.line_color)
+    def add_text(self, color_image, p_x, p_y, font, title="up",text_color=(250, 200, 0)):
+        cv.PutText(color_image, title, (p_x, p_y), font, text_color)
 
 
 class Track:
@@ -61,13 +79,10 @@ class Tracking:
                     last_track_coord = len(track.coordinates) - 1
                     distance_between = math.hypot(track.coordinates[last_track_coord][0] - point[0],
                                                   track.coordinates[last_track_coord][1] - point[1])
-                    if (distance_between <= self.max_distance_between) and (
-                                    distance_between >= (self.min_distance_between + self.min_record_step) and
-                                    track.coordinates[last_track_coord] != point):
+                    if (distance_between <= self.max_distance_between) and (distance_between >= (self.min_distance_between + self.min_record_step) and track.coordinates[last_track_coord] != point):
                         track.add_point(point)
                         we_found_nearest_track = True
-                    if (distance_between <= self.max_distance_between) and (
-                                distance_between >= self.min_distance_between):
+                    if (distance_between <= self.max_distance_between) and (distance_between >= self.min_distance_between):
                         we_found_nearest_track = True
             if not we_found_nearest_track:
                 print "This point have no track", point, "Current track number", cur_track_id + 1
@@ -145,7 +160,7 @@ class Target:
         while True:
             color_image, first = self.image_difference(first)
             contour = self.add_contour_in_storage()
-            font = cv.InitFont(cv.CV_FONT_HERSHEY_SIMPLEX, 1, 1, 0, 1, 1)
+            font = cv.InitFont(cv.CV_FONT_HERSHEY_SIMPLEX, 1, 0.2, 0, 1, 1)
             line_and_text = Visualization()
             #line_and_text.add_line(color_image, self.frame_height, self.frame_width, font, line_color=(0,0,0))
             #line_and_text.add_text_up_down_to_line(color_image, self.frame_height, self.frame_width, font)
@@ -161,13 +176,15 @@ class Target:
                 for point in self.list_of_points:
                     tracking.add_points_to_tracks(point)
                 for track in list_of_tracks:
-                    x_first = track.coordinates[len(track.coordinates) - 2][0]
-                    y_first = track.coordinates[len(track.coordinates) - 2][1]
+                    x_prev = track.coordinates[len(track.coordinates) - 2][0]
+                    y_prev = track.coordinates[len(track.coordinates) - 2][1]
                     x = track.coordinates[len(track.coordinates) - 1][0]
                     y = track.coordinates[len(track.coordinates) - 1][1]
-                    line_and_text.add_line(color_image, self.frame_height, self.frame_width, font,line_p1_x=x_first, line_p1_y=y_first, line_p2_x=x, line_p2_y=y, line_width=4,line_color=(0, 222, 322))
+                    line_and_text.add_line(color_image, self.frame_height, self.frame_width, font,line_p1_x=x_prev, line_p1_y=y_prev, line_p2_x=x, line_p2_y=y, line_width=4,line_color=(0, 222, 322))
+                    if x_prev != x and y != y_prev:
+                        line_and_text.add_text(color_image, x, y, font, title=track.track_id)
             cv.ShowImage("target", color_image)
-            c = cv.WaitKey(1) % 0x100
+            c = cv.WaitKey(200) % 0x100
             if c == 27:
                 break
 
