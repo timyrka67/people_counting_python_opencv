@@ -22,26 +22,30 @@ class Statistics:
         b = [f_y, s_y]
         A = np.array(A)
         b = np.array(b)
-        x = list(np.linalg.solve(A, b))
-        return x[0], x[1]
-
+        print "f_x= ", f_x, "f_y", f_y, "s_x", s_x, "s_y", s_y
+        print "A= ", A, "b", b
+        if f_x != f_y and s_x != s_y:
+            x = list(np.linalg.solve(A, b))
+            return x[0], x[1]
+        else:
+            return 0, 0
     def line_as_a_function(self, x, a, b):
         return a*x + b
 
     def get_objects_crossing_line_count_up_down(self, counter, line_from_track, line):
         line_intersection = line_from_track.intersection(line)
         a_coefficient_track, b_coefficient_track = Statistics.get_equation_coefficients(self, line_from_track)
-        track_function_value_prev = Statistics.line_as_a_function(self, line_from_track.xy[0][0], a_coefficient_track, b_coefficient_track)
-        track_function_value_cur = Statistics.line_as_a_function(self, line_from_track.xy[1][0], a_coefficient_track, b_coefficient_track)
         a_coefficient_line, b_coefficient_line = Statistics.get_equation_coefficients(self, line)
-        line_function_value_prev = Statistics.line_as_a_function(self, line_from_track.xy[0][0], a_coefficient_line, b_coefficient_line)
-        line_function_value_cur = Statistics.line_as_a_function(self, line_from_track.xy[1][0], a_coefficient_line, b_coefficient_line)
-        if line_intersection and track_function_value_prev > line_function_value_prev and track_function_value_cur <= line_function_value_cur:
-            counter.add_up_counter()
-        if line_intersection and track_function_value_prev <= line_function_value_prev and track_function_value_cur > line_function_value_cur:
-            counter.add_down_counter()
+        if a_coefficient_track and b_coefficient_track and a_coefficient_line and b_coefficient_line:
+            track_function_value_prev = Statistics.line_as_a_function(self, line_from_track.xy[0][0], a_coefficient_track, b_coefficient_track)
+            track_function_value_cur = Statistics.line_as_a_function(self, line_from_track.xy[1][0], a_coefficient_track, b_coefficient_track)
+            line_function_value_prev = Statistics.line_as_a_function(self, line_from_track.xy[0][0], a_coefficient_line, b_coefficient_line)
+            line_function_value_cur = Statistics.line_as_a_function(self, line_from_track.xy[1][0], a_coefficient_line, b_coefficient_line)
+            if line_intersection and track_function_value_prev > line_function_value_prev and track_function_value_cur <= line_function_value_cur:
+                counter.add_up_counter()
+            elif line_intersection and track_function_value_prev <= line_function_value_prev and track_function_value_cur > line_function_value_cur:
+                counter.add_down_counter()
         return counter.counter_up_value, counter.counter_down_value
-
 
 class Counter:
     def __init__(self):
@@ -215,10 +219,9 @@ class Target:
                     line_from_track = LineString([prev, cur])
 
                     line_and_text.add_line(color_image, self.frame_height, self.frame_width, font, line_p1_x=x_prev, line_p1_y=y_prev, line_p2_x=cur_x, line_p2_y=cur_y, line_width=4, line_color=(0, 222, 322))
-                    #line_and_text.add_text(color_image, cur_x, cur_y, font, title=track.track_id)
-                    if first_point == 2 and prev[0] != cur[0]:
-                        up, down = statistic.get_objects_crossing_line_count_up_down(counter, line_from_track, line)
-                        print "up", up, "down", down
+
+                    up, down = statistic.get_objects_crossing_line_count_up_down(counter, line_from_track, line)
+                    print "up", up, "down", down
             cv.ShowImage("target", color_image)
             c = cv.WaitKey(1) % 0x100
             if c == 27:
