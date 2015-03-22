@@ -1,4 +1,3 @@
-import cv2
 import cv2.cv as cv
 import math
 import numpy as np
@@ -32,24 +31,29 @@ class Statistics:
     def line_as_a_function(self, x, a, b):
         return a*x + b
 
-    def get_objects_crossing_line_count_up_down(self, counter, line_from_track, line):
+    def get_objects_crossing_line_count_up_down(self, counter, track, line):
         #line_intersection = line_from_track.intersection(line)
-        a_coefficient_track, b_coefficient_track = Statistics.get_equation_coefficients(self, line_from_track)
+        prev = track.coordinates[len(track.coordinates) - 2]
+        cur = track.coordinates[len(track.coordinates) - 1]
+        line_from_track = LineString([prev, cur])
         a_coefficient_line, b_coefficient_line = Statistics.get_equation_coefficients(self, line)
-
-        if True:
+        line_function_value_prev = Statistics.line_as_a_function(self, line_from_track.xy[0][0], a_coefficient_line, b_coefficient_line)
+        line_function_value_cur = Statistics.line_as_a_function(self, line_from_track.xy[1][0], a_coefficient_line, b_coefficient_line)
+        if line_from_track.xy[0][0] == line_from_track.xy[1][0]:
+            track_function_value_prev = line_from_track.xy[0][1]
+            track_function_value_cur = line_from_track.xy[1][1]
+        else:
+            a_coefficient_track, b_coefficient_track = Statistics.get_equation_coefficients(self, line_from_track)
             track_function_value_prev = Statistics.line_as_a_function(self, line_from_track.xy[0][0], a_coefficient_track, b_coefficient_track)
             track_function_value_cur = Statistics.line_as_a_function(self, line_from_track.xy[1][0], a_coefficient_track, b_coefficient_track)
-            line_function_value_prev = Statistics.line_as_a_function(self, line_from_track.xy[0][0], a_coefficient_line, b_coefficient_line)
-            line_function_value_cur = Statistics.line_as_a_function(self, line_from_track.xy[1][0], a_coefficient_line, b_coefficient_line)
-            if track_function_value_prev > line_function_value_prev + self.epsilon and track_function_value_prev > line_function_value_prev - self.epsilon \
-            and track_function_value_cur < line_function_value_cur + self.epsilon and track_function_value_cur > line_function_value_cur - self.epsilon:
-                counter.add_up_counter()
-            elif track_function_value_prev < line_function_value_prev + self.epsilon and track_function_value_prev < line_function_value_prev - self.epsilon \
-            and track_function_value_cur < line_function_value_cur + self.epsilon and track_function_value_cur > line_function_value_cur - self.epsilon:
-                print "track_function_value_prev ", track_function_value_prev ,"track_function_value_cur ", track_function_value_cur
-                counter.add_down_counter()
+            if line_function_value_cur + self.epsilon > track_function_value_cur > line_function_value_cur - self.epsilon and not counter.counter_id in track.list_of_counters:
+                track.set_epsilon_true(counter.counter_id)
+                if track_function_value_prev > line_function_value_prev + self.epsilon and track_function_value_prev > line_function_value_prev - self.epsilon:
+                    counter.add_up_counter()
+                elif track_function_value_prev < line_function_value_prev + self.epsilon and track_function_value_prev < line_function_value_prev - self.epsilon:
+                    counter.add_down_counter()
         return counter.counter_up_value, counter.counter_down_value
+
 
 class Counter:
     def __init__(self):
@@ -82,6 +86,7 @@ class Track:
     def __init__(self):
         self.track_id = ""
         self.coordinates = []
+        self.list_of_counters = []
         self.velocity = 0
 
     def add_point(self, point):
@@ -89,6 +94,18 @@ class Track:
 
     def set_track_id(self, track_id):
         self.track_id = "track %d" % track_id
+
+    def set_epsilon_true(self, counter_id):
+        self.list_of_counters.append(counter_id)
+
+    def set_epsilon_false(self, counter_id):
+        try:
+            if counter_id in self.list_of_counters:
+                self.list_of_counters.remove(counter_id)
+        except ValueError:
+            print "Oops!  That counter_id =", counter_id, "not in list_of_counters"
+
+
 
 
 class Tracking:
@@ -189,8 +206,8 @@ class Target:
             self.list_of_points.append(point)
 
     def run(self):
-        line_point_1 = [0, 150]
-        line_point_2 = [390, 150]
+        line_point_1 = [0, 132]
+        line_point_2 = [390, 135]
         line = LineString([line_point_1, line_point_2])
         counter = Counter()
         statistic = Statistics()
@@ -214,21 +231,17 @@ class Target:
                 for point in self.list_of_points:
                     tracking.add_points_to_tracks(point)
                 for track in list_of_tracks:
-                    prev = track.coordinates[len(track.coordinates) - 2]
                     x_prev = track.coordinates[len(track.coordinates) - 2][0]
                     y_prev = track.coordinates[len(track.coordinates) - 2][1]
-                    cur = track.coordinates[len(track.coordinates) - 1]
                     cur_x = track.coordinates[len(track.coordinates) - 1][0]
                     cur_y = track.coordinates[len(track.coordinates) - 1][1]
-                    line_from_track = LineString([prev, cur])
-
                     line_and_text.add_line(color_image, self.frame_height, self.frame_width, font, line_p1_x=x_prev, line_p1_y=y_prev, line_p2_x=cur_x, line_p2_y=cur_y, line_width=4, line_color=(0, 222, 322))
-                    if line_from_track.xy[0][0] != line_from_track.xy[1][0]:
-                        up, down = statistic.get_objects_crossing_line_count_up_down(counter, line_from_track, line)
-                        print "up", up, "down", down
+                    line_and_text.add_text(color_image, cur_x, cur_y, font, title=track.track_id)
+                    up, down = statistic.get_objects_crossing_line_count_up_down(counter, track, line)
+                    print "up", up, "down", down
 
             cv.ShowImage("target", color_image)
-            c = cv.WaitKey(1) % 0x100
+            c = cv.WaitKey(250) % 0x100
             if c == 27:
                 break
 
