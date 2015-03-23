@@ -11,21 +11,23 @@ list_of_tracks = []
 list_of_counters = []
 
 
-
 class Statistics:
     def __init__(self):
         self.epsilon = 5
 
     def get_equation_coefficients(self, line):
+        #print "LINE", line
         f_x = line.xy[0][0]
         f_y = line.xy[0][1]
         s_x = line.xy[1][0]
         s_y = line.xy[1][1]
-        A = [[f_x, 1], [s_x, 1]]
-        b = [f_y, s_y]
+        A = [[f_x, 1], [f_y, 1]]
+        b = [s_x, s_y]
+        #print "A", A, "b", b
         A = np.array(A)
         b = np.array(b)
         x = list(np.linalg.solve(A, b))
+        #print x
         return x[0], x[1]
 
     def line_as_a_function(self, x, a, b):
@@ -40,12 +42,11 @@ class Statistics:
         line_function_value_prev = Statistics.line_as_a_function(self, line_from_track.xy[0][0], a_coefficient_line, b_coefficient_line)
         line_function_value_cur = Statistics.line_as_a_function(self, line_from_track.xy[1][0], a_coefficient_line, b_coefficient_line)
         if line_from_track.xy[0][0] == line_from_track.xy[1][0]:
-            track_function_value_prev = line_from_track.xy[0][1]
-            track_function_value_cur = line_from_track.xy[1][1]
+            track_function_value_prev = prev[1]
+            track_function_value_cur = cur[1]
         else:
-            a_coefficient_track, b_coefficient_track = Statistics.get_equation_coefficients(self, line_from_track)
-            track_function_value_prev = Statistics.line_as_a_function(self, line_from_track.xy[0][0], a_coefficient_track, b_coefficient_track)
-            track_function_value_cur = Statistics.line_as_a_function(self, line_from_track.xy[1][0], a_coefficient_track, b_coefficient_track)
+            track_function_value_prev = prev[1]
+            track_function_value_cur = cur[1]
             if line_function_value_cur + self.epsilon > track_function_value_cur > line_function_value_cur - self.epsilon and not counter.counter_id in track.list_of_counters:
                 track.set_epsilon_true(counter.counter_id)
                 if track_function_value_prev > line_function_value_prev + self.epsilon and track_function_value_prev > line_function_value_prev - self.epsilon:
@@ -78,7 +79,7 @@ class Visualization():
     def add_line(self, color_image, frame_height, frame_width, font, line_p1_x=0, line_p2_x=200, line_p1_y=200, line_p2_y=200, line_color=(100, 200, 0), line_width=10):
         cv.Line(color_image, (line_p1_x, line_p1_y), (line_p2_x, line_p2_y), line_color, line_width)
 
-    def add_text(self, color_image, p_x, p_y, font, title="up",text_color=(250, 200, 0)):
+    def add_text(self, color_image, p_x, p_y, font, title="up", text_color=(250, 200, 0)):
         cv.PutText(color_image, title, (p_x, p_y), font, text_color)
 
 
@@ -104,8 +105,6 @@ class Track:
                 self.list_of_counters.remove(counter_id)
         except ValueError:
             print "Oops!  That counter_id =", counter_id, "not in list_of_counters"
-
-
 
 
 class Tracking:
@@ -164,7 +163,7 @@ class Target:
         self.frame_size = cv.GetSize(frame)
         self.grey_image = cv.CreateImage(self.frame_size, cv.IPL_DEPTH_8U, 1)
         self.moving_average = cv.CreateImage(self.frame_size, cv.IPL_DEPTH_32F, 3)
-        self.min_area = 2000
+        self.min_area = 2500
         self.max_area = 15000
         self.frame_width = self.frame_size[0]
         self.frame_height = self.frame_size[1]
@@ -206,7 +205,7 @@ class Target:
             self.list_of_points.append(point)
 
     def run(self):
-        line_point_1 = [0, 132]
+        line_point_1 = [5, 135]
         line_point_2 = [390, 135]
         line = LineString([line_point_1, line_point_2])
         counter = Counter()
@@ -241,7 +240,7 @@ class Target:
                     print "up", up, "down", down
 
             cv.ShowImage("target", color_image)
-            c = cv.WaitKey(250) % 0x100
+            c = cv.WaitKey(1) % 0x100
             if c == 27:
                 break
 
