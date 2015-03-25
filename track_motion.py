@@ -2,7 +2,10 @@ import cv2.cv as cv
 from cv2.cv import *
 import math
 import numpy as np
+import json
 from shapely.geometry import LineString
+with open('config.json', 'r') as f:
+    config = json.load(f)
 
 first_point = 0
 cur_track_id = 0
@@ -14,7 +17,7 @@ list_of_counters = []
 
 class Statistics:
     def __init__(self):
-        self.epsilon = 7.5
+        self.epsilon = config['epsilon']
 
     def get_equation_coefficients(self, line):
         f_x = line.xy[0][0]
@@ -32,24 +35,20 @@ class Statistics:
         return a * x + b
 
     def get_objects_crossing_line_count_up_down(self, counter, track, line):
-        # line_intersection = line_from_track.intersection(line)
         prev = track.coordinates[len(track.coordinates) - 2]
         cur = track.coordinates[len(track.coordinates) - 1]
         line_from_track = LineString([prev, cur])
         a_coefficient_line, b_coefficient_line = Statistics.get_equation_coefficients(self, line)
-        line_function_value_prev = Statistics.line_as_a_function(self, line_from_track.xy[0][0], a_coefficient_line,
-                                                                 b_coefficient_line)
-        line_function_value_cur = Statistics.line_as_a_function(self, line_from_track.xy[1][0], a_coefficient_line,
-                                                                b_coefficient_line)
+        line_function_value_prev = Statistics.line_as_a_function(self, line_from_track.xy[0][0], a_coefficient_line, b_coefficient_line)
+        line_function_value_cur = Statistics.line_as_a_function(self, line_from_track.xy[1][0], a_coefficient_line, b_coefficient_line)
         track_function_value_prev = prev[1]
         track_function_value_cur = cur[1]
-        if line_function_value_cur + self.epsilon > track_function_value_cur > line_function_value_cur - self.epsilon:
-            if track_function_value_prev > line_function_value_prev + self.epsilon and track_function_value_prev > line_function_value_prev - self.epsilon and not counter.counter_id in track.list_of_counters_up:
+        if line_function_value_cur + self.epsilon > track_function_value_cur > line_function_value_cur - self.epsilon and not counter.counter_id in track.list_of_counters:
+            track.set_epsilon_true(counter.counter_id)
+            if track_function_value_prev > line_function_value_prev + self.epsilon and track_function_value_prev > line_function_value_prev - self.epsilon:
                 counter.add_up_counter()
-                track.set_epsilon_true_up(counter.counter_id)
-            elif track_function_value_prev < line_function_value_prev + self.epsilon and track_function_value_prev < line_function_value_prev - self.epsilon and not counter.counter_id in track.list_of_counters_down:
+            elif track_function_value_prev < line_function_value_prev + self.epsilon and track_function_value_prev < line_function_value_prev - self.epsilon:
                 counter.add_down_counter()
-                track.set_epsilon_true_down(counter.counter_id)
         return counter.counter_up_value, counter.counter_down_value
 
 
@@ -85,8 +84,7 @@ class Track:
     def __init__(self):
         self.track_id = ""
         self.coordinates = []
-        self.list_of_counters_up = []
-        self.list_of_counters_down = []
+        self.list_of_counters = []
         self.coordinates_time = []
         self.coordinates_speed = []
 
@@ -96,33 +94,17 @@ class Track:
     def add_point_time(self, time):
         self.coordinates_time.append(time)
 
-    def add_coordinate_speed(self, speed):
-        self.coordinates_speed.append(speed)
-
-    def get_coordinate_speed(self, track, distance_between):
-        speed = 1
-        if len(track.coordinates_time):
-            prev_time = track.coordinates_time[len(track.coordinates_time) - 2]
-            cur_time = track.coordinates_time[len(track.coordinates_time) - 1]
-            # print prev_time, cur_time, distance_between
-            if prev_time != cur_time:
-                speed = distance_between / (cur_time - prev_time)
-        return speed
-
     def set_track_id(self, track_id):
         self.track_id = "track %d" % track_id
 
-    def set_epsilon_true_up(self, counter_id):
-        self.list_of_counters_up.append(counter_id)
-
-    def set_epsilon_true_down(self, counter_id):
-        self.list_of_counters_down.append(counter_id)
+    def set_epsilon_true(self, counter_id):
+        self.list_of_counters.append(counter_id)
 
 
 class Tracking:
     def __init__(self):
-        self.max_distance_between = 30
-        self.min_distance_between = 0
+        self.max_distance_between = config['max_distance_between']
+        self.min_distance_between = config['min_distance_between']
         self.list_of_points = []
         self.track = Track()
 
@@ -131,7 +113,6 @@ class Tracking:
         point_with_no_track = ()
         we_found_nearest_track = False
         if first_point == 0:
-            print "First point was detected"
             point_with_no_track = point
             first_point = 1
         if first_point == 2:
@@ -140,13 +121,10 @@ class Tracking:
                     last_track_coord = len(track.coordinates) - 1
                     distance_between = math.hypot(track.coordinates[last_track_coord][0] - point[0],
                                                   track.coordinates[last_track_coord][1] - point[1])
-                    speed = track.get_coordinate_speed(track, distance_between)
-                    track.add_coordinate_speed(speed)
                     if (distance_between <= self.max_distance_between) and distance_between >= self.min_distance_between:
                         track.add_point(point)
                         we_found_nearest_track = True
             if not we_found_nearest_track:
-                print "This point have no track", point, "Current track number", cur_track_id + 1
                 point_with_no_track = point
         return first_point, point_with_no_track
 
@@ -155,14 +133,11 @@ class Tracking:
         first_point, point_with_no_track = self.find_nearest_track(point, cur_time)
         if point_with_no_track:
             if first_point == 1:
-                print "We will add first_point", point, "To track = ", cur_track_id
-
                 self.track.set_track_id(cur_track_id)
                 self.track.add_point(point_with_no_track)
                 list_of_tracks.append(self.track)
                 cur_track_id += 1
                 first_point = 2
-                print "First point was added. Current number of tracks =", len(list_of_tracks)
             else:
                 self.track.set_track_id(cur_track_id)
                 self.track.add_point(point_with_no_track)
@@ -170,16 +145,27 @@ class Tracking:
                 cur_track_id += 1
 
 
+class BorderLine:
+    def __init__(self):
+        self.line_point_1 = []
+        self.line_point_2 = []
+        self.line = LineString()
+
+    def set_line_points(self, line_point1, line_point2):
+        self.line_point1 = line_point1
+        self.line_point2 = line_point2
+        self.line = LineString([self.line_point1, self.line_point2])
+
+
 class Target:
     def __init__(self):
-        self.capture = cv.CaptureFromFile("People.mp4")
-        self.capture = cv.CaptureFromCAM(0)
+        self.capture = cv.CaptureFromFile(config['video_file'])
         frame = cv.QueryFrame(self.capture)
         self.frame_size = cv.GetSize(frame)
         self.grey_image = cv.CreateImage(self.frame_size, cv.IPL_DEPTH_8U, 1)
         self.moving_average = cv.CreateImage(self.frame_size, cv.IPL_DEPTH_32F, 3)
-        self.min_area = 2500
-        self.max_area = 15000
+        self.min_area = config['min_area']
+        self.max_area = config['max_area']
         self.frame_width = self.frame_size[0]
         self.frame_height = self.frame_size[1]
         self.list_of_points = []
@@ -214,14 +200,13 @@ class Target:
         area = x_length * y_length
         return pt1, pt2, point, area
 
-    def get_points_tracking(self, point, area, color_image):
-        if area > self.min_area and area < self.max_area:
-            cv.Circle(color_image, point, 2, cv.CV_RGB(255, 255, 0), 6)
+    def get_points_tracking(self, point, area):
+        if self.min_area < area < self.max_area:
             self.list_of_points.append(point)
 
     def run(self):
-        line_point_1 = [5, 135]
-        line_point_2 = [390, 135]
+        line_point_1 = config['line_point_1']
+        line_point_2 = config['line_point_2']
         line = LineString([line_point_1, line_point_2])
         counter = Counter()
         statistic = Statistics()
@@ -229,7 +214,6 @@ class Target:
         list_of_counters.append(counter)
         first = True
         while True:
-            print
             color_image, first = self.image_difference(first)
             contour = self.add_contour_in_storage()
             font = cv.InitFont(cv.CV_FONT_HERSHEY_SIMPLEX, 1, 0.2, 0, 1, 1)
@@ -243,7 +227,7 @@ class Target:
                 pt1, pt2, point, area = self.get_rectangle_parameters(bound_rect, color_image)
                 cv.Rectangle(color_image, pt1, pt2, cv.CV_RGB(255, 0, 0), 1)
                 self.list_of_points = []
-                self.get_points_tracking(point, area, color_image)
+                self.get_points_tracking(point, area)
                 tracking = Tracking()
                 cur_time = GetCaptureProperty(self.capture, CV_CAP_PROP_POS_MSEC)
                 for point in self.list_of_points:
@@ -260,16 +244,15 @@ class Target:
                                            line_p1_y=y_prev, line_p2_x=cur_x, line_p2_y=cur_y, line_width=4,
                                            line_color=(0, 222, 322))
                     line_and_text.add_text(color_image, cur_x, cur_y, font, title=track.track_id)
+
                     up, down = statistic.get_objects_crossing_line_count_up_down(counter, track, line)
-                    print "up", up, "down", down
+                    line_and_text.add_text(color_image, int(line.xy[0][0]), int(line.xy[1][0])-10, font, text_color=(100, 200, 50), title="U " + str(up))
+                    line_and_text.add_text(color_image, int(line.xy[0][0]), int(line.xy[1][0])+20, font, text_color=(100, 200, 50), title="D " + str(down))
 
             cv.ShowImage("target", color_image)
-            c = cv.WaitKey(100) % 0x100
+            c = cv.WaitKey(config['wait_key']) % 0x100
             if c == 27:
                 break
-
-
 if __name__ == "__main__":
     t = Target()
-    t.run()
     t.run()

@@ -1,0 +1,1 @@
+{"min_distance_between": 0, "wait_key": 10, "line_point_1": [5, 135], "line_point_2": [390, 135], "min_area": 2500, "epsilon": 7.5, "max_area": 20000, "video_file": "People.mp4", "max_distance_between": 30}
